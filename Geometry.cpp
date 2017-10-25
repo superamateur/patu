@@ -85,25 +85,7 @@ bool Geometry::validate(void) {
 	}
 	m_vertex_num = nvertex;
 	m_face_num = nface;
-	for(size_t i = 0; i < nface; ++i) {
-		int v0 = m_face_indices[i][0] - 1;
-		int v1 = m_face_indices[i][1] - 1;
-		int v2 = m_face_indices[i][2] - 1;
-		
-		Vector3D vec1(m_vertices[v0].p);
-		Vector3D vec2(m_vertices[v1].p);
-		Vector3D vec3(m_vertices[v2].p);
-		
-		Vector3D l1, l2;
-		l2 = vec3 - vec2;			
-		l1 = vec2 - vec1;
-		if(l1.get_length() > 1 && l2.get_length() > 1) {
-			std::cout << "v " << vec1[0]  << " " << vec1[1] << " " << vec1[2] << std::endl;
-			std::cout << "v " << vec2[0]  << " " << vec2[1] << " " << vec2[2] << std::endl;
-			std::cout << "v " << vec3[0]  << " " << vec3[1] << " " << vec3[2] << std::endl;
-			std::cout << v2  << std::endl;
-		}
-	}
+	
 	return true;
 }
 
@@ -142,4 +124,70 @@ void Geometry::set_vertex_offset(const int offset)
 		m_face_indices[i].vertices[1] -= offset;
 		m_face_indices[i].vertices[2] -= offset;
 	}
+}
+
+bool Geometry::planar_cut(Geometry& g1, Geometry& g2, const Point3D_t& origin, const Vector3D_t& normal)
+{
+	std::vector<bool> front_face(m_vertex_num);
+	std::vector<int> vert_index_map(m_vertex_num);
+	int num_front_vert = 0, num_back_vert = 0;
+	for(int i = 0; i < m_vertex_num; ++i) {
+		Geometry& target_geom = (0.f > (m_vertices[i] - origin) * normal) ? g2 : g1;
+		if(0.f > (m_vertices[i] - origin) * normal) {
+			front_face[i] = false;
+			vert_index_map[i] = num_back_vert;
+			++num_back_vert;
+		} else {
+			front_face[i] = true;
+			vert_index_map[i] = num_front_vert;
+			++num_front_vert;
+		}
+		target_geom.insert_vertex(m_vertices[i].p); 
+	}
+
+	for(int i = 0; i < (int)m_face_indices.size(); ++i)
+	{
+		const FaceIndex_t& face = m_face_indices[i];
+		int num_front = 0;
+		int num_back = 0;
+		for(int j = 0; j < (int)face.vertices.size(); ++j)
+		{
+			if(front_face[face.vertices[j]]) {
+				++num_front;
+			} else {
+				++num_back;
+			}
+		}
+		if(0 == num_front || 0 == num_back) { // the face totally belong to one of the two geoms
+			Geometry& target_geom = (0 == num_back) ? g1 : g2;
+			std::vector<int> f; // point id
+			std::vector<int> t; // texture id
+			std::vector<int> n; // normal id
+
+			for(int k = 0; k < (int)face.vertices.size(); ++k) {
+				f.push_back(vert_index_map[face.vertices[k]]);
+			}
+			target_geom.insert_face(&f[0], face.vertices.size());
+		}
+	}
+	return (g1.validate() && g2.validate());
+}
+
+bool Geometry::export_to_obj(const std::string& file_name)
+{
+	std::fstream fs;
+	fs.open(file_name.c_str(), std::ios_base::out);
+	if( !fs.is_open() ) {
+		false;
+	}
+	for(std::vector<Point3D_t>::iterator it = m_vertices.begin(); it != m_vertices.end(); ++it)
+	{
+		fs << "v " << (*it)[0] << ", " << (*it)[1] << ", " << (*it)[2] << std::endl;
+	}
+	for(std::vector<FaceIndex_t>::iterator it = m_face_indices.begin(); it != m_face_indices.end(); ++it)
+	{
+		fs << "f " << it->vertices[0] << ", " << it->vertices[1] << ", " << it->vertices[2] << std::endl;
+	}
+	fs.close();
+	return true;
 }

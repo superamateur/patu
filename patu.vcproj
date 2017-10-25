@@ -164,7 +164,7 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				CommandLine="copy &quot;E:\Sources\NVIDIA GPU Computing SDK 3.2\shared\bin\win32\Release\*.dll&quot; $(OutDir)"
+				CommandLine="copy &quot;C:\ProgramData\NVIDIA Corporation\NVIDIA GPU Computing SDK 3.2\shared\bin\win32\Release\*.dll&quot; $(OutDir)"
 			/>
 		</Configuration>
 	</Configurations>

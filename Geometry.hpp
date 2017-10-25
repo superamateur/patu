@@ -28,6 +28,9 @@ typedef struct Point3D__
 	float& operator[](const size_t id) {
 		return p[id];
 	}
+	const float operator[](const size_t id) const {
+		return p[id];
+	}
 	Point3D__() {}
 	Point3D__(const float* xyz)
 	{
@@ -41,12 +44,24 @@ typedef struct Point3D__
 		p[1] = y;
 		p[2] = z;
 	}
+	Point3D__ operator - (const Point3D__& other) {
+		return Point3D__(p[0] - other[0], p[1] - other[1], p[2] - other[2]);
+	}
+	Point3D__ operator + (const Point3D__& other) {
+		return Point3D__(p[0] + other[0], p[1] + other[1], p[2] + other[2]);
+	}
+	float operator * (const Point3D__& other) {
+		return (p[0] * other[0] + p[1] * other[1] + p[2] * other[2]);
+	}
 } Point3D_t;
 
 typedef struct TCoord__
 {
 	float uv[2];
 	float& operator[](const size_t id) {
+		return uv[id];
+	}
+	const float& operator[](const size_t id) const {
 		return uv[id];
 	}
 	TCoord__() {}
@@ -96,7 +111,12 @@ public:
 
 	const std::vector<Point3D_t>& vertices(void) const { return m_vertices; }
 	const std::vector<FaceIndex_t>& faces(void)  const { return m_face_indices; }
+	const std::vector<TCoord_t>& tcoords(void)  const { return m_tcoords; }
+
 	void set_vertex_offset(const int offset);
+	bool planar_cut(Geometry& g1, Geometry& g2, const Point3D_t& origin, const Vector3D_t& normal);
+
+	bool export_to_obj(const std::string& file_name);
 private:
 	int m_vertex_num;
 	int m_face_num;

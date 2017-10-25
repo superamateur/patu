@@ -31,6 +31,9 @@ void OpenGLRenderWindow::render(void)
 
 	// invoke the display callback
 	glutPostRedisplay();
+
+	// main display loop
+	glutMainLoop();
 }
 
 kErrorCode OpenGLRenderWindow::init_glut_window(void)
