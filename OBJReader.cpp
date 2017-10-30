@@ -15,7 +15,7 @@ OBJReader::~OBJReader(void)
 {
 }
 
-kReturnCode OBJReader::read(Geometry& geom)
+kReturnCode OBJReader::read(Geometry& geom, const int id_offset)
 {
 	kReturnCode return_code = RETURN_CODE_SUCCESS;
 
@@ -80,13 +80,11 @@ kReturnCode OBJReader::read(Geometry& geom)
 					return_code = RETURN_CODE_FAILURE;
 					break;
 				}
-				if( 1 <= _sub_sub_t.size() ) f.push_back(_sub_sub_t[0].get_int());
-				if( 2 <= _sub_sub_t.size() ) t.push_back(_sub_sub_t[1].get_int());
-				if( 3 == _sub_sub_t.size() ) n.push_back(_sub_sub_t[2].get_int());
+				if( 1 <= _sub_sub_t.size() ) f.push_back(_sub_sub_t[0].get_int() - id_offset);
+				if( 2 <= _sub_sub_t.size() ) t.push_back(_sub_sub_t[1].get_int() - id_offset);
+				if( 3 == _sub_sub_t.size() ) n.push_back(_sub_sub_t[2].get_int() - id_offset);
 			}
-			if(!f.empty()) geom.insert_face(&f[0], static_cast<int>(f.size()));
-			if(!t.empty()) geom.insert_face_tcoord(&t[0], static_cast<int>(t.size()));
-			if(!n.empty()) geom.insert_face_normal(&n[0], static_cast<int>(n.size()));
+			if(!f.empty()) geom.insert_face(f, t ,n);
 		}	
 	}
 

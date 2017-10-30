@@ -17,7 +17,7 @@ class OpenGLRenderBuffer
 {
 MAKE_SINGLETON(OpenGLRenderBuffer);
 public:
-	static std::map<int, GLvoid*>& render_buffer_list(void) { return m_render_buffer_list; }
+	static std::map<int, GLvoid*>& render_buffer_list(void) { return m_render_buffer_list; }	
 private:
 	static std::map<int, GLvoid*> m_render_buffer_list;	
 };
@@ -30,9 +30,10 @@ public:
 
 	virtual void refresh(void);
 	virtual void render(void);
-
 	GLvoid* get_render_buffer(void);
 	int get_window_id(void) { return m_id; }
+
+	static Geometry* m_geometry;
 private:
 	kErrorCode init_glut_window(void);
 	int m_id; // window id

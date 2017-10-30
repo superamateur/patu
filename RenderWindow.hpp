@@ -5,6 +5,7 @@
 #include "errors.h"
 #include "Thread.hpp"
 
+class Geometry;
 class RenderWindow
 {
 public:
@@ -18,7 +19,6 @@ public:
 	SET_GET_MACRO(size_t, height, height);
 	SET_GET_MACRO(size_t, position_x, position_x);
 	SET_GET_MACRO(size_t, position_y, position_y);
-
 protected:
 	size_t m_width;
 	size_t m_height;

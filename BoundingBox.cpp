@@ -12,4 +12,5 @@ BoundingBox::~BoundingBox(void)
 
 bool BoundingBox::intersect(const Ray* iray, float& min, float& max)
 {
+	return false;
 }

@@ -6,6 +6,7 @@
 #include <exception>
 #include <vector>
 #include <map>
+#include <set>
 #include <fstream>
 #include <sstream>
 #include <algorithm>
@@ -48,5 +49,8 @@ private:																\
 }
 
 #define FLT_0 0.f
+
+typedef std::vector<int>::iterator IntIterType;
+typedef std::vector<int>::const_iterator ConstIntIterType;
 
 #endif // __FUNC_DEFS_H

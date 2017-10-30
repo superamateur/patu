@@ -14,7 +14,7 @@ public:
 
 	void set_file_name(const char* file_name);
 
-	virtual kReturnCode read(Geometry& geom) = 0;
+	virtual kReturnCode read(Geometry& geom, const int id_offset = 1) = 0;
 protected:
 	std::string m_file_name;
 };

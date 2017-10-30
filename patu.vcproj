@@ -41,7 +41,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="&quot;$(ProjectDir)&quot;;&quot;E:\Sources\NVIDIA GPU Computing SDK 3.2\shared\inc&quot;"
+				AdditionalIncludeDirectories="&quot;$(ProjectDir)lalgebra&quot;;&quot;$(ProjectDir)&quot;;&quot;C:\ProgramData\NVIDIA Corporation\NVIDIA GPU Computing SDK 3.2\shared\inc&quot;"
 				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -62,7 +62,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				LinkIncremental="2"
-				AdditionalLibraryDirectories="E:\Sources\NVIDIA GPU Computing SDK 3.2\shared\lib"
+				AdditionalLibraryDirectories="C:\ProgramData\NVIDIA Corporation\NVIDIA GPU Computing SDK 3.2\shared\lib"
 				GenerateDebugInformation="true"
 				SubSystem="1"
 				TargetMachine="1"
@@ -87,7 +87,7 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				CommandLine="copy &quot;E:\Sources\NVIDIA GPU Computing SDK 3.2\shared\bin\win32\Release\*.dll&quot; $(OutDir)"
+				CommandLine="copy &quot;C:\ProgramData\NVIDIA Corporation\NVIDIA GPU Computing SDK 3.2\shared\bin\win32\Release\*.dll&quot; $(OutDir)"
 			/>
 		</Configuration>
 		<Configuration

@@ -12,6 +12,7 @@ Matrix::Matrix()
 Matrix& Matrix::operator  =(const Matrix& other)
 {
 	set_elements(other.get_elements());
+	return *this;
 }
 
 Matrix::~Matrix()
@@ -245,6 +246,7 @@ Matrix Matrix::get_transpose(void) const
 			ret.set_element(col, row, m_elems[row * 4 + col]);
 		}
 	}
+	return *this;
 }
 
 void Matrix::transpose(void)

@@ -37,11 +37,11 @@ public:
 	const float* vector(void) const { return &m_vector[0]; }
 	void update();
 
+	void dump() { INFO_MSG(m_vector[0] << ", " << m_vector[1] << ", " << m_vector[2]); }
 private:
 	size_t m_dimension;
 	float m_length;
 	std::vector<float> m_vector;
-	bool m_dirty_flag;
 };
 
 typedef struct Point_

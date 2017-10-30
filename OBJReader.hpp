@@ -11,6 +11,6 @@ public:
 	OBJReader(void);
 	OBJReader(const char* file_name);
 	virtual ~OBJReader(void);
-	virtual kReturnCode read(Geometry& geom);
+	virtual kReturnCode read(Geometry& geom, const int id_offset = 1);
 };
 #endif

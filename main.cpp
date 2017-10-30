@@ -10,12 +10,20 @@ int main(int argc, char* argv[]) {
 	Geometry bunny_geom;
 	obj.read(bunny_geom);
 	bunny_geom.show_off();
-	const std::vector<TCoord_t>& tc = bunny_geom.tcoords();
-	bunny_geom.set_vertex_offset(1);
+	const std::vector<TCoord_t>& tc = bunny_geom.tcoords();	
 	Geometry bunny_half_geom[2];
-	bunny_geom.planar_cut(bunny_half_geom[0], bunny_half_geom[1], Point3D_t(0, 0, 0), Vector3D_t(0, 1, 0));
-	bunny_half_geom[0].show_off(); bunny_half_geom[0].set_vertex_offset(-1); bunny_half_geom[0].export_to_obj("bunny_01.obj");
-	bunny_half_geom[1].show_off(); bunny_half_geom[1].set_vertex_offset(-1); bunny_half_geom[1].export_to_obj("bunny_02.obj");
+	/*INFO_MSG("cut point = ");
+	bunny_geom.get_geometry_center().dump();*/
+	bunny_geom.planar_cut(bunny_half_geom[0], bunny_half_geom[1], bunny_geom.get_geometry_center(), Vector3D_t(0, 0, 1));
+	
+	bunny_half_geom[0].show_off(); bunny_half_geom[0].export_to_obj("bunny_01.obj");
+	bunny_half_geom[1].show_off(); bunny_half_geom[1].export_to_obj("bunny_02.obj");
+	Geometry  flatten = bunny_half_geom[0].make_flatten();
+	
+	flatten.show_off(); flatten.export_to_obj("flatten.obj");
+
+	return 0;
+	OpenGLRenderWindow::m_geometry = &bunny_half_geom[0];
 
 	ParamParse::set_args(argc, argv);
 	OpenGLRenderWindow renwin;

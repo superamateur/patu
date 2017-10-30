@@ -1,12 +1,16 @@
 #include "OpenGLRenderWindow.hpp"
 #include "ParamParse.hpp"
+#include "Geometry.hpp"
 
 // static member declaration
 std::map<int, GLvoid*> OpenGLRenderBuffer::m_render_buffer_list;
+Geometry* OpenGLRenderWindow::m_geometry = NULL;
 
 // forward declaration of utility functions
 static void keyboard ( unsigned char key, int x ,int y);
 static void display(void);
+static void reshape(GLsizei width, GLsizei height);
+static void draw(Geometry* g);
 
 OpenGLRenderWindow::OpenGLRenderWindow(void)
 : RenderWindow()
@@ -67,6 +71,8 @@ kErrorCode OpenGLRenderWindow::init_glut_window(void)
 	// set display callback
 	glutDisplayFunc(display);
 
+	glutReshapeFunc(reshape); 
+
 	return ERROR_CODE_NO_ERROR;
 }
 
@@ -80,10 +86,15 @@ static void keyboard ( unsigned char key, int x ,int y)
   switch ( key )
   {
     case 27: // esc key
-      exit ( 0 );
-      break;
-    default:
-      break;
+		exit ( 0 );
+		break;
+	case 'w':
+		glPolygonMode(GL_FRONT, GL_LINE);
+		glPolygonMode(GL_BACK, GL_LINE);
+		glutPostRedisplay();
+		break;
+	default:
+		break;
   }
 }
 
@@ -100,9 +111,55 @@ static void display(void)
 
 	if(0 != wid) {
 		GLvoid* render_buffer = OpenGLRenderBuffer::render_buffer_list()[wid];
-		if(NULL != render_buffer) {
+		/*if(NULL != render_buffer) {
 			glDrawPixels(width, height, GL_RGB, GL_UNSIGNED_BYTE, render_buffer);
 			glutSwapBuffers();
-		}
+		}*/
+
+		draw(OpenGLRenderWindow::m_geometry);
 	}
+}
+
+static void reshape(GLsizei width, GLsizei height) {  // GLsizei for non-negative integer
+   // Compute aspect ratio of the new window
+   if (height == 0) height = 1;                // To prevent divide by 0
+   GLfloat aspect = (GLfloat)width / (GLfloat)height;
+ 
+   // Set the viewport to cover the new window
+   glViewport(0, 0, width, height);
+ 
+   // Set the aspect ratio of the clipping volume to match the viewport
+   glMatrixMode(GL_PROJECTION);  // To operate on the Projection matrix
+   glLoadIdentity();             // Reset
+
+   SBoundingBox bbox = OpenGLRenderWindow::m_geometry->get_bounding_box();
+   Vector3D center = (bbox.from + bbox.to) * Vector3D(0.5, 0.5, 0.5);
+   center.dump();
+   gluLookAt(center[0], center[1], 0.f,
+			center[0], center[1], center[2],
+			0.0f, 1.0f,  0.0f);
+
+   gluPerspective(45.0f, aspect, 0.1f, 1000.0f);
+
+   glutPostRedisplay();
+}
+
+static void draw(Geometry* g)
+{
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear color and depth buffers
+	glMatrixMode(GL_MODELVIEW);     // To operate on model-view matrix
+	glLoadIdentity();                 // Reset the model-view matrix
+	if(NULL != g) {
+		FaceArray faces = g->faces();
+		glBegin(GL_TRIANGLES); 
+		const float scale = 1;
+		for(int i = 0; i < (int)faces.size(); ++i) {
+			const std::vector<int>& triangle = faces[i].m_vertex_id;
+			glVertex3f(scale * g->get_vertex_pos(triangle[0])[0], scale * g->get_vertex_pos(triangle[0])[1], scale * g->get_vertex_pos(triangle[0])[2]);
+			glVertex3f(scale * g->get_vertex_pos(triangle[1])[0], scale * g->get_vertex_pos(triangle[1])[1], scale * g->get_vertex_pos(triangle[1])[2]);
+			glVertex3f(scale * g->get_vertex_pos(triangle[2])[0], scale * g->get_vertex_pos(triangle[2])[1], scale * g->get_vertex_pos(triangle[2])[2]);
+		}
+		glEnd();
+	}
+	glutSwapBuffers();
 }
