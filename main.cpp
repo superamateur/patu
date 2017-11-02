@@ -6,10 +6,30 @@
 #include <windows.h>
 #include <math.h>
 int main(int argc, char* argv[]) {
-	OBJReader obj("pumpkin_tall_10k.obj");
+	if(argc != 2) {
+		WARN_MSG("Expect 1 input file");
+		return 0;
+	}
+	OBJReader obj(argv[1]);
 	Geometry bunny_geom;
 	obj.read(bunny_geom);
 	bunny_geom.show_off();
+
+	if(0) {
+		bunny_geom.mark_vert_as_boundary(0, 1);
+		bunny_geom.mark_vert_as_boundary(1, 2);
+		bunny_geom.mark_vert_as_boundary(2, 5);
+		bunny_geom.mark_vert_as_boundary(5, 8);
+		bunny_geom.mark_vert_as_boundary(8, 7);
+		bunny_geom.mark_vert_as_boundary(7, 6);
+		bunny_geom.mark_vert_as_boundary(6, 3);
+		bunny_geom.mark_vert_as_boundary(6, 0);
+
+		Geometry flatten_geom = bunny_geom.make_flatten();
+		flatten_geom.export_to_obj("flatten.obj");
+		return 0;
+	}
+
 	const std::vector<TCoord_t>& tc = bunny_geom.tcoords();	
 	Geometry bunny_half_geom[2];
 	/*INFO_MSG("cut point = ");

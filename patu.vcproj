@@ -117,7 +117,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
-				AdditionalIncludeDirectories="&quot;$(ProjectDir)lalgebra&quot;;&quot;$(ProjectDir)&quot;;&quot;C:\ProgramData\NVIDIA Corporation\NVIDIA GPU Computing SDK 3.2\shared\inc&quot;"
+				AdditionalIncludeDirectories="&quot;E:\Sources\work\eigen-eigen-5a0156e40feb&quot;;&quot;$(ProjectDir)lalgebra&quot;;&quot;$(ProjectDir)&quot;;&quot;C:\ProgramData\NVIDIA Corporation\NVIDIA GPU Computing SDK 3.2\shared\inc&quot;"
 				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"

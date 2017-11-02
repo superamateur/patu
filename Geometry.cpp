@@ -1,5 +1,9 @@
 #include "Geometry.hpp"
 #include <cmath>
+#include<Eigen/SparseLU>
+#include <Eigen/Dense>
+#include<Eigen/SparseCholesky>
+#include<Eigen/SparseQR>
 
 #ifndef M_PI
 #define M_PI 3.14159265359f
@@ -198,29 +202,32 @@ bool Geometry::planar_cut(Geometry& g1, Geometry& g2, const Point3D_t& origin, c
 		} else {
 			// cut the face into halves
 			std::vector<SEdgeCut> cut_points;
-			std::vector<int> duplicated_vert_id;
+			std::set<int> duplicated_vert_id;
 			for(int j = 0; j < 3; ++j) {
 				const int j_next = (j + 1) % 3;
 				if(is_front_half.at(face.m_vertex_id[j]) != is_front_half.at(face.m_vertex_id[j_next])) { // should be an intersect
 					const Vector3D A = m_vert_pos.at(face.m_vertex_id[j]);
 					const Vector3D B = m_vert_pos.at(face.m_vertex_id[j_next]);
 					const float t = (origin - A).dot(normal) / (B - A).dot(normal);
-					if(1.e-7f < t || t > 1.f - 1.e-7f) {
+					if(!(EQUAL_FLT(t, 0) || EQUAL_FLT(t, 1))) {
 						SEdgeCut cut(face.m_vertex_id[j], face.m_vertex_id[j_next]);
 						cut.cut_point = A + Vector3D(t, t, t) * (B - A);
 						cut_points.push_back(cut);
 					} else {
-						if(1.e-7f >= t) duplicated_vert_id.push_back(face.m_vertex_id[j]);
-						else duplicated_vert_id.push_back(face.m_vertex_id[j_next]);
+						if(EQUAL_FLT(t, 0)) {
+							duplicated_vert_id.insert(face.m_vertex_id[j]);
+						} else {
+							duplicated_vert_id.insert(face.m_vertex_id[j_next]);
+						}
 					}
 				}
 			}
-			if(cut_points.empty() || 2 < cut_points.size()) {
-				ERR_MSG("Should not happen");
+			if(2 < cut_points.size()) {
+				ERR_MSG("Cannot have more then 2 intersection points");
 			}
 
 			// add any duplicated vertex to the other side
-			for(IntIterType it = duplicated_vert_id.begin(); it != duplicated_vert_id.end(); ++it)
+			for(std::set<int>::iterator it = duplicated_vert_id.begin(); it != duplicated_vert_id.end(); ++it)
 			{
 				Geometry& target_geom = (is_front_half.at(*it)) ? g2 : g1;
 				std::vector<int>& target_index_map = (is_front_half.at(*it)) ? back_index_map : front_index_map;
@@ -251,8 +258,16 @@ bool Geometry::planar_cut(Geometry& g1, Geometry& g2, const Point3D_t& origin, c
 						new_vert_id.push_back(found_it->registered_id);
 					}
 				}
+				
 				if(3 > new_vert_id.size() || 4 < new_vert_id.size()) {
-					ERR_MSG("Should not happen");
+					// if a edge of the original triangle conside with the cut plane, set the edge as boundary
+					if(2 == new_vert_id.size()) {
+						target_geom.mark_vert_as_boundary(
+							target_index_map.at(new_vert_id[0]),
+							target_index_map.at(new_vert_id[1])
+							);
+					}
+					continue;
 				}
 				for(int offset = 0; offset <2; ++offset) {
 					if((int)new_vert_id.size() < offset + 3) break;
@@ -392,7 +407,6 @@ std::vector<int> Geometry::get_longest_boundary_chain()
 
 Geometry Geometry::make_flatten(void)
 {
-	Geometry ret_geom;
 	std::vector<int> boundary_vert = get_longest_boundary_chain();
 	
 	const int K = (int)boundary_vert.size();
@@ -422,15 +436,21 @@ Geometry Geometry::make_flatten(void)
 			vec_1.normalize();
 			vec_2.normalize();
 			alphas[i] += std::acos(vec_1.dot(vec_2));
+			//INFO_MSG("alpha = " << std::acos(vec_1.dot(vec_2)) * 180 / M_PI);
 		}
-		
-		sum_of_sum += alphas[i];
+		//INFO_MSG("sum = " << alphas[i] * 180 / M_PI);
+		sum_of_sum += alphas[i];		
 	}
 
 	std::vector<float> betas(K, 0.f); // normalized angles
-	float sum_beta = 0;
 	for(int i = 0; i < (int)K; ++i) {
 		betas[i] = ((int)K - 2) * M_PI * alphas[i] / sum_of_sum; 
+		//INFO_MSG("beta = " << betas[i] * 180 / M_PI << " alpha = " << alphas[i] * 180 / M_PI << " sum_of_sum = " << sum_of_sum * 180 / M_PI);
+	}
+
+	make_convex_hull_angles(betas);
+	float sum_beta = 0;
+	for(int i = 0; i < (int)K; ++i) {
 		//INFO_MSG("beta = " << betas[i] * 180 / M_PI << " alpha = " << alphas[i] * 180 / M_PI << " sum_of_sum = " << sum_of_sum * 180 / M_PI);
 		sum_beta += betas[i];
 	}
@@ -480,15 +500,72 @@ Geometry Geometry::make_flatten(void)
 	
 	// transform the new verts so that the center does not change
 	Vector3D displ = (old_center - new_center) * Vector3D(1.f/K, 1.f/K ,1.f/K);
-	std::vector<int> f; // point id
-	std::vector<int> t; // texture id
-	std::vector<int> n; // normal id
-	for(int i = 0; i < K; ++i) {
-		ret_geom.insert_vertex(new_boundary_pos.at(i).vector());
-		f.push_back(i);		
+
+	std::map<int, Vector3D> flatten_map;
+	for(int i = 0; i < K; ++i)
+	{
+		flatten_map.insert(std::make_pair(boundary_vert[i], new_boundary_pos[i] + displ));
+		flatten_map[boundary_vert[i]][2] = 0.f;
 	}
-	ret_geom.insert_face(f, t, n);
+	solve_for_internal_vertices(flatten_map);
+
+	Geometry ret_geom;
+	for(std::map<int, Vector3D>::iterator it = flatten_map.begin(); it != flatten_map.end(); ++it)
+	{
+		ret_geom.insert_vertex(it->second.vector());
+	}
+	for(FaceArray::iterator it = m_faces.begin(); it != m_faces.end(); ++it)
+	{
+		ret_geom.insert_face(it->m_vertex_id, it->m_texure_id, it->m_normal_id);
+	}
 	return ret_geom;
+}
+
+bool Geometry::make_convex_hull_angles(std::vector<float>& b)
+{
+	const int N = (int)b.size();
+	float sum_before = 0.f;
+	for(int i = 0; i < N; ++i)
+	{
+		sum_before += b[i];
+	}
+	INFO_MSG("Before sum = " << sum_before * 180 / M_PI);
+
+	while(true)
+	{
+		int over_saturated_num = 0;
+		float over_saturated_sum = 0;
+		float non_saturated_sum = 0;
+		for(int i = 0; i < N; ++i)
+		{
+			if(M_PI < b[i])
+			{
+				++over_saturated_num;
+				over_saturated_sum += b[i] - M_PI;
+				b[i] = M_PI;
+			} else if(M_PI > b[i]) {
+				non_saturated_sum += b[i];
+			}
+		}
+		
+		if(over_saturated_num == 0) {
+			break;
+		}
+		
+		float after_sum = 0;
+		float debug = 0.f;
+		for(int i = 0; i < N; ++i)
+		{
+			if(M_PI > b[i])
+			{
+				b[i] += over_saturated_sum * b[i] / non_saturated_sum;
+				debug += b[i] / non_saturated_sum;
+			}
+			after_sum += b[i];
+		}
+		INFO_MSG("After sum = " << after_sum / (N - 2) * 180 / M_PI << ", debug = " << debug << "over saturated num = " << over_saturated_num);
+	} 
+	return true;
 }
 
 std::vector<int> Geometry::list_adjacent_verts(const int curr_vert_id)
@@ -508,4 +585,193 @@ std::vector<int> Geometry::list_adjacent_verts(const int curr_vert_id)
 	}
 
 	return std::vector<int>(unique_adj_vert.begin(), unique_adj_vert.end());
+}
+
+std::pair<float, float> Geometry::calc_edge_weight(int i, int j)
+{
+	bool debug = false;
+	if((1 == i && 2668 == j) || (5 == i && 4 == j))
+	{
+		debug = true;
+	}
+	Vector3D vi_pos = m_vert_pos.at(i);
+	Vector3D vj_pos = m_vert_pos.at(j);
+	Vector3D eij = (vj_pos - vi_pos); 
+	const double edge_len = eij.get_length();
+	eij.normalize();
+	Vector3D eji(-eij[0], -eij[1], -eij[2]);
+
+	SVertex vi = m_vertices.at(i);
+	SVertex vj = m_vertices.at(j);
+	FaceArray common_faces;
+	for(IntIterType it = vi.m_adjacent_face_id.begin(); it != vi.m_adjacent_face_id.end(); ++it)
+	{
+		SFace face = m_faces.at(*it);
+		if(std::find(face.m_vertex_id.begin(), face.m_vertex_id.end(), j) != face.m_vertex_id.end())
+		{
+			common_faces.push_back(face);
+			if(debug) {
+				face.show_off();
+			}
+		}
+	}
+	if(common_faces.size() < 1 || common_faces.size() > 2) {
+		//ERR_MSG("Bad common face number: " << common_faces.size() << " I = " << i << " j = " << j);
+	}
+	float tan_ij = 0.f, tan_ji = 0.f;
+	for(FaceArray::iterator it = common_faces.begin(); it != common_faces.end(); ++it)
+	{
+		int other_index = -1;
+		for(int k = 0; k < 3; ++k) {
+			if(i != it->m_vertex_id[k] && j != it->m_vertex_id[k]) {
+				other_index = it->m_vertex_id[k];
+				break;
+			}
+		}
+		if(-1 == other_index)
+		{
+			ERR_MSG("Hmm");
+		}
+		for(int sw = 0; sw < 2; ++sw)
+		{
+			Vector3D ex = m_vert_pos.at(other_index) - ((sw == 0)  ? vi_pos : vj_pos);
+			ex.normalize();
+			const float cosine = ex.dot(((sw == 0)  ? eij : eji));
+			
+			const float tan_val = std::tan(0.5 * std::acos(cosine));
+			if(debug) {
+				ex.dump();
+				INFO_MSG( " consine = " << cosine);
+				INFO_MSG( " tan_val = " << tan_val);
+			}
+			if(0 == sw) tan_ij += tan_val;
+			else tan_ji += tan_val;
+		}
+	}
+	if(debug)
+	{
+		INFO_MSG("tan ij = " << tan_ij << ", ji = " << tan_ji << ", edge = " << edge_len);
+	}
+	return std::make_pair(tan_ij / edge_len, tan_ji / edge_len);
+}
+
+bool Geometry::solve_for_internal_vertices(std::map<int, Vector3D>& flatten_map)
+{
+	typedef Eigen::SparseMatrix<float> SpMat; // declares a column-major sparse matrix type of float
+	typedef Eigen::Triplet<float> T;
+	typedef Eigen::VectorXf SpVec;
+
+	const int num_vert = (int)m_vertices.size(); 
+	SpMat weight_matrix(num_vert, num_vert);
+	// build weight matrix
+	{
+		weight_matrix.setZero();
+		std::vector<T> tripletList;
+		tripletList.reserve(num_vert * 4);
+		for(int i = 0; i < num_vert; ++i)
+		{
+			std::vector<int> adj_verts = list_adjacent_verts(i);
+			for(IntIterType it = adj_verts.begin(); it != adj_verts.end(); ++it)
+			{
+				if(0 == weight_matrix.coeff(i, *it))
+				{
+					std::pair<float, float> ww = calc_edge_weight(i, *it);
+					weight_matrix.coeffRef(i, *it) = ww.first;
+					weight_matrix.coeffRef(*it, i) = ww.second;
+				}
+			}
+		}
+	}
+	
+	// build the system
+	{
+		Eigen::MatrixXf D(num_vert, num_vert);
+
+		SpMat A(num_vert, num_vert);
+		SpVec Bx(num_vert), By(num_vert);
+		std::vector<T> tripletList;
+		tripletList.reserve(num_vert * 4);
+		for(int i = 0; i < num_vert; ++i)
+		{
+			tripletList.push_back(T(i, i, 1));
+			D.coeffRef(i, i) = 1;
+			if(m_vertices.at(i).m_is_boundary) {
+				if(flatten_map.find(i) == flatten_map.end()) {
+					ERR_MSG(i << " Should be ready in the flatten map");
+				}
+				Bx(i) = flatten_map[i][0];
+				By(i) = flatten_map[i][1];
+			} else {
+				std::vector<int> adj_verts = list_adjacent_verts(i);
+				float weight_sum = 0.f;
+				for(IntIterType it = adj_verts.begin(); it != adj_verts.end(); ++it)
+				{
+					weight_sum += weight_matrix.coeff(i, *it);
+				}
+				const float W = 1.f / weight_sum;
+				for(IntIterType it = adj_verts.begin(); it != adj_verts.end(); ++it)
+				{
+					const float coeff = /*-1.f / adj_verts.size();*/ -weight_matrix.coeff(i, *it) * W;
+					tripletList.push_back(T(i, *it, coeff));
+					Bx(i) = 0;
+					By(i) = 0;
+
+					D.coeffRef(i, *it) = coeff;
+				}
+			}
+		}
+		A.setFromTriplets(tripletList.begin(), tripletList.end());
+		
+		std::fstream fs;
+		fs.open("sys_matrix.txt", std::ios_base::out);
+		if( !fs.is_open() ) {
+			false;
+		}
+		fs << weight_matrix << std::endl << "=====" << std::endl;
+		fs << A << std::endl << "=====" << std::endl;
+		fs << D << std::endl << "=====" << std::endl;
+		fs << Bx << std::endl << "=====" << std::endl;
+		fs << By << std::endl;
+		fs.close();
+
+		INFO_MSG("Solving ...");
+		Eigen::SimplicialLDLT<SpMat> solver;
+		Eigen::ColPivHouseholderQR<Eigen::MatrixXf> dense_solver; dense_solver.compute(D);
+
+		solver.compute(A);
+		if(solver.info()!= Eigen::Success) {
+			ERR_MSG("Failed Solving the system");
+		}
+
+		SpVec X = solver.solve(Bx);
+		if(solver.info()!= Eigen::Success) {
+			ERR_MSG("Failed Solving the system");
+		}
+
+		SpVec Y = solver.solve(By);
+		if(solver.info()!= Eigen::Success) {
+			ERR_MSG("Failed Solving the system");
+		}
+
+		Eigen::VectorXf DX = dense_solver.solve(Bx);
+		Eigen::VectorXf DY = dense_solver.solve(By);
+
+		for(int i = 0; i < num_vert; ++i)
+		{
+			//flatten_map.insert(std::make_pair(i, Vector3D(X(i), Y(i), 0.f)));
+			flatten_map.insert(std::make_pair(i, Vector3D(DX(i), DY(i), 0.f)));
+		}
+
+		// test 
+		for(int i = 0; i < num_vert; ++i)
+		{
+			float result = 0;
+			for(int j = 0; j < num_vert; ++j)
+			{
+				result += A.coeff(i, j) * X(j);
+			}
+			//INFO_MSG("Result at " << i << " = " << result << ", expected " << Bx(i) << ". X = " << X(i) << ", Y = " << Y(i));
+		}
+	}
+	return true;
 }

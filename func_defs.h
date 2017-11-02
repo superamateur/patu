@@ -7,6 +7,7 @@
 #include <vector>
 #include <map>
 #include <set>
+#include <queue>
 #include <fstream>
 #include <sstream>
 #include <algorithm>
@@ -48,8 +49,14 @@ private:																\
 	std::cout << __FILE__ << "::" << __FUNCTION__<< "::" << __LINE__ << " [INFO]: " << msg << std::endl;	\
 }
 
-#define FLT_0 0.f
+#define WARN_MSG(msg)																					\
+{																										\
+	std::cout << __FILE__ << "::" << __FUNCTION__<< "::" << __LINE__ << " [WARN]: " << msg << std::endl;	\
+}
 
+#define FLT_0 0.f
+#define FLT_ESP 1.e-7f
+#define EQUAL_FLT(x, y) ((((x) - (y)) < FLT_ESP) && (((x) - (y)) > -FLT_ESP))
 typedef std::vector<int>::iterator IntIterType;
 typedef std::vector<int>::const_iterator ConstIntIterType;
 
